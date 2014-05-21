@@ -60,10 +60,12 @@ end
 
 
 --get delta updates from all shards in cluster y
-function getUpdates(rcy, vsx)
+function getUpdates(rcy)
+	local A2 = {}
+	local R2 = {}
 	local rsy_list = rs_table[rcy]
 	for k,rsy in pairs(rsy_list) do
-		getUpdatesFromOneShard(rcy, rsy)
+		A2, R2 = getUpdatesFromOneShard(rcy, rsy)
 	end
 end
 
@@ -75,13 +77,16 @@ function getUpdatesFromOneShard(rcy, rsy)
 		--format like this
 		--t:rc.rs.id
 		local t = split(index, ":")[1]
-		local element = split(index, ":")[2]
+		local e_desc = split(index, ":")[2]
+		local rc_in_ed = split(e_desc, ".")[1]
+		local rs_in_ed = split(e_desc, ".")[2]
+		local id_in_ed = split(e_desc, ".")[3]
 
 		--if element is new, get it;else, jump out of the loop
-		if 
+		if vsx[rc_in_ed] < 
 		vxs
 		--get element from shard
-		getElementFromOneShard(rcy, rsy, element)
+		getElementFromOneShard(rcy, rsy, e_desc)
 	end
 end
 
@@ -117,8 +122,8 @@ ip = "localhost"
 port = getInstancePort()
 
 T = getTimeStamp()
-vxs = getVersion(rcx)
-vxy = getVersion(rsy)
+vsx = getVersion(rcx)
+vsy = getVersion(rcy)
 
 
 --return rsy_list[1]
