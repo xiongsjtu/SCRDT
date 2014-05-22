@@ -18,7 +18,7 @@ function getInstanceIp()
 end
 
 
-string.split = function(s, p)
+function split(s, p)
 
     local rt= {}
     string.gsub(s, '[^'..p..']+', function(w) table.insert(rt, w) end )
@@ -30,14 +30,20 @@ function testf1()
 	return 1,2
 end
 
+function serialize(s)
+	return "abc"
+end
+
+a = {}
+a['a1'] = 1
+print(a['a1'])
+
+
 
 --local res = os.execute("redis-cli eval \"$(cat lookup.lua)\" 0 xiong")
-local cmd2 = "redis-cli -h localhost -p 6380 eval \"$(cat lookup.lua)\" 0 xiong"
+--local cmd2 = "redis-cli -h localhost -p 6380 eval \"$(cat lookup.lua)\" 0 xiong"
 --cmd2 = "redis-cli -h ".."localhost".." -p ".."6379".." config get port"
 --local cmd2 = "ls"
 
 --local res = run(cmd2)
 --print(getInstanceIp())
-a,b = testf1()
-print(a)
-print(b)

@@ -1,5 +1,3 @@
-require "serialize"
-
 
 --run cmd and return result
 function run(cmd)
@@ -15,55 +13,24 @@ function split(s, p)
     return rt
 end
 
---getTimeStamp
-function getTimeStamp(local_rc, local_rs, rc_list, rs_list)
-	local ts = {}
-	for i,rc in ipairs(rc_list) do
-		for j,rs in ipairs(rs_list[rc]) do
-			local cmd = "redis-cli -h "..local_rc.." -p "..local_rs.." get timestamp:"..rc..":"..rs
-			local t = split(run(cmd), "\n")[1]
-			if (ts[rc] == nil) then
-				ts[rc] = {}
-			end
-			ts[rc][rs] = t
-		end
-	end
-	return ts
+function serialize(obj)
+	local m = require("serialize")
+	obj = m.serialize(obj)
+	--After redis-cli eval transfer, space will make a mess, and quatation will automatically be deleted.
+	--So here, we use some methods to take care of it.
+	obj = obj:gsub(" ", "")
+	obj = obj:gsub("\"", "_sjtu_adc_")
+	return obj
 end
 
---version
---according to the algorithm in the paper
-function getVersion(timestamp, rcx)
-	local version = {}
-	for rc,rs_list in pairs(timestamp) do
-		for rs,t in pairs(rs_list) do
-			if version[rc] == nil then
-				version[rc] = timestamp[rc][rs]
-			else
-				if rcx == rc then
-					if version[rc] < timestamp[rc][rs] then
-						version[rc] = timestamp[rc][rs]
-					end
-				else
-					if version[rc] > timestamp[rc][rs] then
-						version[rc] = timestamp[rc][rs]
-					end
-				end
-			end
-		end
-	end
-	return version
+function unserialize(obj)
+	--After redis-cli eval transfer, quatation will automatically be deleted.
+	--So here, we use some methods to take care of it.
+	obj = obj:gsub("_sjtu_adc_", "\"")
+	obj = loadstring(obj)()
+	return obj
 end
 
---get delta updates from all shards in cluster y
-function getUpdates(rcy)
-	local A2 = {}
-	local R2 = {}
-	local rsy_list = rs_table[rcy]
-	for k,rsy in pairs(rsy_list) do
-		A2, R2 = getUpdatesFromOneShard(rcy, rsy)
-	end
-end
 
 function getUpdatesFromOneShard(rcy, rsy)
 	--get index list from shard
@@ -112,26 +79,64 @@ end
 function mergeToLocalShardFromOneShard(local_rc, local_rs, other_rc, other_rs, rc_list, rs_list)
 	local timestamp = getTimeStamp(local_rc, local_rs, rc_list, rs_list)
 	local timestamp_x = getVersion(timestamp, local_rc)
-	local timestamp_y = getVersion(timestamp, other_rc)
 
-	local tx_serialized = serialize(timestamp_x)
-	--After eval transfer, space will make a mess, and quatation will automatically be deleted.
-	--So here, we use some methods to take care of it.
-	tx_serialized = tx_serialized:gsub(" ", "")
-	tx_serialized = tx_serialized:gsub("\"", "_")
-
-	--In order to enable serialize, I put the serialize_local.lua together
-	local cmd = "redis-cli -h localhost -p 6380 eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized
-	local res = run(cmd)
-	res = split(res, "\n")[1]
-	
-	--[[res = res:gsub("_", "\"")
-	res = loadstring(res)()]]--
-
-	print(res)
+	--updates = {"AR":[{e,t,rc,rs,t2,rc2,rs2},...],"T":[t,...]}
+	local updates = getUpdates(other_rc, other_rs, timestamp_x)
 
 end
 
+--getTimeStamp
+function getTimeStamp(local_rc, local_rs, rc_list, rs_list)
+	local ts = {}
+	for i,rc in ipairs(rc_list) do
+		for j,rs in ipairs(rs_list[rc]) do
+			local cmd = "redis-cli -h "..local_rc.." -p "..local_rs.." get timestamp:"..rc..":"..rs
+			local t = split(run(cmd), "\n")[1]
+			if (ts[rc] == nil) then
+				ts[rc] = {}
+			end
+			ts[rc][rs] = t
+		end
+	end
+	return ts
+end
+
+
+--version
+--according to the algorithm in the paper
+function getVersion(timestamp, rcx)
+	local version = {}
+	for rc,rs_list in pairs(timestamp) do
+		for rs,t in pairs(rs_list) do
+			if version[rc] == nil then
+				version[rc] = timestamp[rc][rs]
+			else
+				if rcx == rc then
+					if version[rc] < timestamp[rc][rs] then
+						version[rc] = timestamp[rc][rs]
+					end
+				else
+					if version[rc] > timestamp[rc][rs] then
+						version[rc] = timestamp[rc][rs]
+					end
+				end
+			end
+		end
+	end
+	return version
+end
+
+--get delta updates from all shards in cluster y
+function getUpdates(other_rc, other_rs, timestamp_x)
+	local tx_serialized = serialize(timestamp_x)
+	
+	--In order to enable serialize, I put the serialize_local.lua together
+	--local cmd = "redis-cli -h "..other_rc.." -p "..other_rs.." eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized.." "..other_rs
+	local cmd = "redis-cli -h localhost -p 6380 eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized.." "..other_rs
+	local res = run(cmd)
+	res = split(res, "\n")[1]
+	return res
+end
 
 --main
 
