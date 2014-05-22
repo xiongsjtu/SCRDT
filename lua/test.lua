@@ -26,6 +26,10 @@ string.split = function(s, p)
 
 end 
 
+function testf1()
+	return 1,2
+end
+
 
 --local res = os.execute("redis-cli eval \"$(cat lookup.lua)\" 0 xiong")
 local cmd2 = "redis-cli -h localhost -p 6380 eval \"$(cat lookup.lua)\" 0 xiong"
@@ -34,10 +38,6 @@ local cmd2 = "redis-cli -h localhost -p 6380 eval \"$(cat lookup.lua)\" 0 xiong"
 
 --local res = run(cmd2)
 --print(getInstanceIp())
-
-a = {}
-a[1] = {}
-a[1][2] = 1
-for k,v in pairs(a) do
-	print(x)
-end
+a,b = testf1()
+print(a)
+print(b)
