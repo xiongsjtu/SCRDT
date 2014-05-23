@@ -10,7 +10,7 @@ local ids = redis.call("SMEMBERS", "ids:"..e)
 for i, gid in pairs(ids) do
 	if redis.call("EXISTS", "element:"..gid) == 1 then
 		redis.call("HMSET", "element:"..gid, "rmv.t", t2, "rmv.rc", rc2, "rmv.rs", rs2)
-		redis.call("expire", "element:"..gid, ttl)
-		redis.call("lpush", "index:"..rc2..":"..rs2, t2..":"..gid)
+		--redis.call("expire", "element:"..gid, ttl)
+		redis.call("LPUSH", "index:"..rc2..":"..rs2, t2..":"..gid)
 	end
 end

@@ -1,3 +1,4 @@
+require "serialize"
 
 --run cmd and return result
 function run(cmd)
@@ -13,9 +14,8 @@ function split(s, p)
     return rt
 end
 
-function serialize(obj)
-	local m = require("serialize")
-	obj = m.serialize(obj)
+function serialize_local(obj)
+	obj = serialize(obj)
 	--After redis-cli eval transfer, space will make a mess, and quatation will automatically be deleted.
 	--So here, we use some methods to take care of it.
 	obj = obj:gsub(" ", "")
@@ -23,39 +23,12 @@ function serialize(obj)
 	return obj
 end
 
-function unserialize(obj)
+function unserialize_local(obj)
 	--After redis-cli eval transfer, quatation will automatically be deleted.
 	--So here, we use some methods to take care of it.
 	obj = obj:gsub("_sjtu_adc_", "\"")
 	obj = loadstring(obj)()
 	return obj
-end
-
-
-function getUpdatesFromOneShard(rcy, rsy)
-	--get index list from shard
-	local cmd = "redis-cli -h "..rcy.." -p "..rsy.." lrange index:"..rc..":"..rs.." 0 -1"
-	local index_list = split(run(cmd), "\n")
-	for i,index in ipairs(index_list) do
-		--format like this
-		--t:rc.rs.id
-		local t = split(index, ":")[1]
-		local e_desc = split(index, ":")[2]
-		local rc_in_ed = split(e_desc, ".")[1]
-		local rs_in_ed = split(e_desc, ".")[2]
-		local id_in_ed = split(e_desc, ".")[3]
-
-		--if element is new, get it;else, jump out of the loop
-		--if 
-		--vxs
-		--get element from shard
-		--getElementFromOneShard(rcy, rsy, element)
-	end
-end
-
-function getElementFromOneShard( ... )
-	local cmd2 = "redis-cli -h "..rcy.." -p "..rsy.." lrange index:"..rc..":"..rs.." 0 -1"
-	local index_list = split(run(cmd), "\n")
 end
 
 function mergeToLocalClusterFromAllOthers(local_rc, rc_list, rs_list)
@@ -80,9 +53,22 @@ function mergeToLocalShardFromOneShard(local_rc, local_rs, other_rc, other_rs, r
 	local timestamp = getTimeStamp(local_rc, local_rs, rc_list, rs_list)
 	local timestamp_x = getVersion(timestamp, local_rc)
 
-	--updates = {"AR":[{e,t,rc,rs,t2,rc2,rs2},...],"T":[t,...]}
+	--updates = {"AR":['t:rc.rs.id':{e,t,rc,rs,t2,rc2,rs2},...],"T":[{'rc':t},...]}
 	local updates = getUpdates(other_rc, other_rs, timestamp_x)
+	--[[for k,v in pairs(updates['AR']) do
+		print(k)
+		for k2,v2 in pairs(v) do
+			print(k2,v2)
+		end
+	end]]--
+	--[[for k,v in pairs(updates['T']) do
+		print(k,v)
+	end]]--
 
+	addUpdates(updates['AR'], local_rc, local_rs, rc_list, rs_list)
+	updateTimeStamps(timestamp, updates['T'], rc_list, rs_list)
+
+	--print(updates)
 end
 
 --getTimeStamp
@@ -128,32 +114,113 @@ end
 
 --get delta updates from all shards in cluster y
 function getUpdates(other_rc, other_rs, timestamp_x)
-	local tx_serialized = serialize(timestamp_x)
+	local tx_serialized = serialize_local(timestamp_x)
 	
 	--In order to enable serialize, I put the serialize_local.lua together
-	--local cmd = "redis-cli -h "..other_rc.." -p "..other_rs.." eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized.." "..other_rs
-	local cmd = "redis-cli -h localhost -p 6380 eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized.." "..other_rs
+	local cmd = "redis-cli -h "..other_rc.." -p "..other_rs.." eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized
+	--local cmd = "redis-cli -h localhost -p 6380 eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized
 	local res = run(cmd)
 	res = split(res, "\n")[1]
+	res = unserialize_local(res)
 	return res
 end
+
+--hash function
+--an easy impl:just assume e is a number, and divide the rs_count by it
+function hash(e, rs_list_of_rc)
+	--get length of list
+	local rs_count = 0
+	for i,v in ipairs(rs_list_of_rc) do
+		rs_count = rs_count + 1
+	end
+
+	return rs_list_of_rc[e%rs_count+1]
+end
+
+
+--add updates of elements to local shard
+--update format:['t:rc.rs.id':{'value':e,'add.t':t,'add_rc':rc,'add_rs':rs,'rmv.t':t2,'rmv.rc':rc2,'rmv.rs':rs2},...]
+--false here means for nil
+function addUpdates(updates, local_rc, local_rs, rc_list, rs_list)
+	--visit every element to find suitable element for this shard
+	for index,element in pairs(updates) do
+		--index format is 't:rc.rs.id'
+		local t = split(index, ":")[1]
+		local rc_rs_id = split(index, ":")[2]
+		local rc_in_rri = split(rc_rs_id, ".")[1]
+			.."."..split(rc_rs_id, ".")[2]
+			.."."..split(rc_rs_id, ".")[3]
+			.."."..split(rc_rs_id, ".")[4]
+		local rs_in_rri = split(rc_rs_id, ".")[5]
+		local id_in_rri = split(rc_rs_id, ".")[6]
+
+		local value = element['value']
+		local add_t = element['add.t']
+		local add_rc = element['add.rc']
+		local add_rs = element['add.rs']
+		local rmv_t = element['rmv.t']
+		local rmv_rc = element['rmv.rc']
+		local rmv_rs = element['rmv.rs']
+
+		local rs = hash(value, rs_list[local_rc])
+		if local_rs == rs then
+			--hmset element:rc.rs.id
+			local cmd1 = "redis-cli -h "..local_rc.." -p "..local_rs
+				.." hmset element:"..rc_rs_id
+				.." value "..value.." add.t "..add_t.." add.rc "..add_rc.." add.rs "..add_rs
+			if rmv_t ~= false then
+				cmd1 = cmd1.." rmv.t "..rmv_t.." rmv.rc "..rmv_rc.." rmv.rs "..rmv_rs
+			end
+			run(cmd1)
+
+			--lpush index:rc:rs t:rc.rs.id for add
+			run("redis-cli -h "..local_rc.." -p "..local_rs
+				.." lpush index:"..add_rc..":"..add_rs
+				.." "..add_t..":"..rc_rs_id)
+			--lpush index:rc:rs t:rc.rs.id for remove if exists
+			if rmv_t ~= false then
+				run("redis-cli -h "..local_rc.." -p "..local_rs
+					.." lpush index:"..rmv_rc..":"..rmv_rs
+					.." "..rmv_t..":"..rc_rs_id)
+			end
+
+			--sadd ids:e rc.rs.id
+			run("redis-cli -h "..local_rc.." -p "..local_rs
+					.." sadd ids:"..value
+					.." "..rc_rs_id)
+
+		end
+
+	end
+end
+
+--add updates of elements to local shard
+--update format:[{'rc':t}},...]
+function updateTimeStamps(timestamp, updates, rc_list, rs_list)
+	for rc,t in pairs(updates) do
+		for k,rs in pairs(rs_list[rc]) do
+			if timestamp[rc][rs] == nil or tonumber(timestamp[rc][rs]) < tonumber(t) then
+				local cmd = "redis-cli -h localhost -p 6379 set timestamp:"..rc..":"..rs.." "..t
+				run(cmd)
+			end
+		end
+	end
+end
+
+
 
 --main
 
 --init config
 --cluster and shard configs will be read from redis
-local local_rc = split(run("redis-cli -h localhost -p 6380 get local_rc"), '\n')[1] -- read local rc from redis
-local rc_list = split(run("redis-cli -h localhost -p 6380 smembers rc_list"), '\n') -- read rc_list from redis
+local local_rc = split(run("redis-cli -h localhost -p 6379 get local_rc"), '\n')[1] -- read local rc from redis
+local rc_list = split(run("redis-cli -h localhost -p 6379 smembers rc_list"), '\n') -- read rc_list from redis
 local rs_list = {}-- read rs_list from redis
 for k,rc in pairs(rc_list) do
-	local one_rs_list = split(run("redis-cli -h localhost -p 6380 smembers rs_list:"..rc), '\n')
+	local one_rs_list = split(run("redis-cli -h localhost -p 6379 smembers rs_list:"..rc), '\n')
 	rs_list[rc] = one_rs_list
 end
 
 mergeToLocalClusterFromAllOthers(local_rc, rc_list, rs_list)
-
-T = getTimeStamp()
-vsx = getVersion(rcx)
-vsy = getVersion(rcy)
 
 

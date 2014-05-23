@@ -34,11 +34,18 @@ function serialize(s)
 	return "abc"
 end
 
-a = {}
-a['a1'] = 1
-print(a['a1'])
+--[[local ip = "192.168.0.123"
+local port = "6379"
+local rc = "192.168.0.123"
+local rs = "6379"
+for i=1,10 do
+	local element = i
+	run("redis-cli -h "..ip.." -p "..port.." eval \"$(cat add.lua)\" 0 "..element.." "..rc.." "..rs)
+end]]--
 
+--print(split(run("redis-cli -h ".."localhost".." -p ".."6379".." hget element:192.168.0.123.6379.1 value"), '\n')[1]/2)
 
+--run("redis-cli -h localhost -p 6379 hmeset a a1 1 a2 "..nil)
 
 --local res = os.execute("redis-cli eval \"$(cat lookup.lua)\" 0 xiong")
 --local cmd2 = "redis-cli -h localhost -p 6380 eval \"$(cat lookup.lua)\" 0 xiong"

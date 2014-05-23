@@ -57,5 +57,5 @@ for i, gid1 in pairs(ids) do
 			end		
 		end
 	end
-end
+endz
 return 0

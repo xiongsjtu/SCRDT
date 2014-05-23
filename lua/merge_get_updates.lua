@@ -31,66 +31,117 @@ local function unserialize_local(obj)
 	return obj
 end
 
+--getTimeStamp
+local function getTimeStamp(local_rc, local_rs, rc_list, rs_list)
+	local ts = {}
+	for i,rc in ipairs(rc_list) do
+		for j,rs in ipairs(rs_list[rc]) do
+			--local cmd = "redis-cli -h "..local_rc.." -p "..local_rs.." get timestamp:"..rc..":"..rs
+			local t = redis.call("get", "timestamp:"..rc..":"..rs)--split(run(cmd), "\n")[1]
+			if (ts[rc] == nil) then
+				ts[rc] = {}
+			end
+			ts[rc][rs] = t
+		end
+	end
+	return ts
+end
+
+--version
+--according to the algorithm in the paper
+local function getVersion(timestamp, rcx)
+	local version = {}
+	for rc,rs_list in pairs(timestamp) do
+		for rs,t in pairs(rs_list) do
+			if version[rc] == nil then
+				version[rc] = timestamp[rc][rs]
+			else
+				if rcx == rc then
+					if version[rc] < timestamp[rc][rs] then
+						version[rc] = timestamp[rc][rs]
+					end
+				else
+					if version[rc] > timestamp[rc][rs] then
+						version[rc] = timestamp[rc][rs]
+					end
+				end
+			end
+		end
+	end
+	return version
+end
+
 
 --main
-
 --init config
 --cluster and shard configs will be read from redis
-local local_rc = split(run("redis-cli -h localhost -p 6380 get local_rc"), '\n')[1] -- read local rc from redis
-local rc_list = split(run("redis-cli -h localhost -p 6380 smembers rc_list"), '\n') -- read rc_list from redis
-local rs_list = {}-- read rs_list from redis
+local local_rc = redis.call("get", "local_rc")--read local rc from redis
+local local_rs = redis.call("get", "local_rs")--read local rs from redis
+local rc_list = redis.call("smembers", "rc_list")--read rc_list from redis
+local rs_list = {}--read rs_list from redis
 for k,rc in pairs(rc_list) do
-	local one_rs_list = split(run("redis-cli -h localhost -p 6380 smembers rs_list:"..rc), '\n')
+	local one_rs_list = redis.call("smembers", "rs_list:"..rc)
 	rs_list[rc] = one_rs_list
 end
 
 --int argv
 local tx_serialized = ARGV[1]
 local timestamp_x = unserialize_local(tx_serialized)
-local local_rs = ARGV[2]
 
 
---get index:rc:rs
+--get updates
 local AR = {}
 for k1,rc in pairs(rc_list) do
 	for k2,rs in pairs(rs_list[rc]) do
-		local cmd = "redis-cli -h "..local_rc.." -p "..local_rs.." lrange index:"..rc..":"..rs.." 0 -1"
-		local index_list = split(run(cmd), "\n")
+		--get index:rc:rs
+		--local cmd = "redis-cli -h "..local_rc.." -p "..local_rs.." lrange index:"..rc..":"..rs.." 0 -1"
+		local index_list = redis.call("lrange", "index:"..rc..":"..rs, "0", "-1")
 		for i,index in ipairs(index_list) do
 			--format like this
 			--t:rc.rs.id
 			local t = split(index, ":")[1]
 			local rc_rs_id = split(index, ":")[2]
 			local rc_in_rri = split(rc_rs_id, ".")[1]
-			local rs_in_rri = split(rc_rs_id, ".")[2]
-			local id_in_rri = split(rc_rs_id, ".")[3]
+				.."."..split(rc_rs_id, ".")[2]
+				.."."..split(rc_rs_id, ".")[3]
+				.."."..split(rc_rs_id, ".")[4]
+			local rs_in_rri = split(rc_rs_id, ".")[5]
+			local id_in_rri = split(rc_rs_id, ".")[6]
 
-			--if element is new, get it;else, jump out of the loop
-			if timestamp_x[rc_in_rri] < t then
+			--if element is new, get it
+			if timestamp_x[rc_in_rri] == nil or tonumber(timestamp_x[rc_in_rri]) < tonumber(t) then
 				-- get element:rc.rs.id
 				local element_rc_rs_id = {}
-				local cmd2 = "redis-cli -h "..local_rc.." -p "..local_rs.." hget element:"..rc_rs_id
-				element_rc_rs_id["value"] = split(run(cmd2.." value"), '\n')[1]
-				element_rc_rs_id["add.t"] = split(run(cmd2.." add.t"), '\n')[1]
-				element_rc_rs_id["add.rc"] = split(run(cmd2.." add.rc"), '\n')[1]
-				element_rc_rs_id["add.rs"] = split(run(cmd2.." add.rs"), '\n')[1]
-				element_rc_rs_id["rmv.t"] = split(run(cmd2.." rmv.t"), '\n')[1]
-				element_rc_rs_id["rmv.rc"] = split(run(cmd2.." rmv.rc"), '\n')[1]
-				element_rc_rs_id["rmv.rs"] = split(run(cmd2.." rmv.rs"), '\n')[1]
+				element_rc_rs_id["value"] = redis.call("hget", "element:"..rc_rs_id, "value")
+				element_rc_rs_id["add.t"] = redis.call("hget", "element:"..rc_rs_id, "add.t")
+				element_rc_rs_id["add.rc"] = redis.call("hget", "element:"..rc_rs_id, "add.rc")
+				element_rc_rs_id["add.rs"] = redis.call("hget", "element:"..rc_rs_id, "add.rs")
+				element_rc_rs_id["rmv.t"] = redis.call("hget", "element:"..rc_rs_id, "rmv.t")
+				element_rc_rs_id["rmv.rc"] = redis.call("hget", "element:"..rc_rs_id, "rmv.rc")
+				element_rc_rs_id["rmv.rs"] = redis.call("hget", "element:"..rc_rs_id, "rmv.rs")
+				--element_rc_rs_id["debug.t"] = t
+				--element_rc_rs_id["debug.rc_in_rri"] = rc_in_rri
+				--element_rc_rs_id["debug.timestamp_x[rc_in_rri]"] = timestamp_x[rc_in_rri]
 
 
-				table.insert(AR, )
-			else
-				break
+				--table.insert(AR, element_rc_rs_id)
+				AR[index] = element_rc_rs_id
 			end
 		end
 	end
 end
 
+--get Ty
+local timestamp = getTimeStamp(local_rc, local_rs, rc_list, rs_list)
+local timestamp_y = getVersion(timestamp, local_rc)
 
---After eval transfer, space will make a mess, and quatation will automatically be deleted.
---So here, we use some methods to take care of it.
-local b = serialize_local(timestamp_x)
+--get result
+local updates = {}
+updates['AR'] = AR
+updates['T'] = timestamp_y
+
+--serialize and return
+local result = serialize_local(updates)
 
 
-return timestamp_x['192.168.0.123']
+return result
