@@ -51,15 +51,9 @@ end]]--
 --local cmd2 = "redis-cli -h localhost -p 6380 eval \"$(cat lookup.lua)\" 0 xiong"
 --cmd2 = "redis-cli -h ".."localhost".." -p ".."6379".." config get port"
 --local cmd2 = "ls"
-input = {1,2,3,4,5,1,1,4,5,2}
-for i=#input,1,-1 do
-    if input[i] == 1 then
-        table.remove(input, i)
-    end
-end
-
-for i,v in ipairs(input) do
-	print(i,v)
-end
+math.randomseed( os.time() );
+for a = 1, 10 do
+         print( math.random(4) );
+end;
 --local res = run(cmd2)
 --print(getInstanceIp())
