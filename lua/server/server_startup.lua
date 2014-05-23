@@ -27,16 +27,16 @@ function makeChangesToOneShard(rcx, rsx)
 	run(cmd1)
 
 	--refresh rs_list
-	for k,rc2 in pairs(global_rc_list) do
+	for k,rc2 in pairs(rc_list) do
 		run("redis-cli -h "..rc.." -p "..rs
 			.." del rs_list:"..rc2) 
 	end
 
 	local cmd2 = "redis-cli -h "..rc.." -p "..rs
 		.." sadd rs_list:"
-	for k,rc2 in pairs(global_rc_list) do
+	for k,rc2 in pairs(rc_list) do
 		cmd3 = cmd2..rc2
-		for k,rs2 in pairs(global_rs_list[rc2]) do
+		for k,rs2 in pairs(rs_list[rc2]) do
 			cmd3 = cmd3.." "..rs2
 		end
 		run(cmd3)
@@ -65,10 +65,6 @@ for i,rc in ipairs(rc_list) do
 	rs_list[rc] = split(run("redis-cli -h "..coordinator_ip.." -p "..coordinator_port
 	.." smembers rs_list:"..rc), '\n')
 end
-
-global_rc_list = rc_list
-global_rs_list = rs_list
-
 
 if add_or_remove == 'remove' then
 	--if the operation is remove, then remove the rc and rs in the global
@@ -101,17 +97,14 @@ else
 		--add local_rc to instance of local server
 		run("redis-cli -h "..local_rc.." -p "..rs
 			.." set local_rc "..local_rc)
-
-		--make the change to every instance of local server
-		makeChangesToOneShard(local_rc, rs)
 	end
 
 
 end
 
 --make the change to every instance of every other server
-for k,rc in pairs(global_rc_list) do
-	for k,rs in pairs(global_rs_list[rc]) do
+for k,rc in pairs(rc_list) do
+	for k,rs in pairs(rs_list[rc]) do
 		makeChangesToOneShard(rc, rs)
 	end
 end
