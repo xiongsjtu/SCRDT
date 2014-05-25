@@ -38,6 +38,9 @@ local function getTimeStamp(local_rc, local_rs, rc_list, rs_list)
 		for j,rs in ipairs(rs_list[rc]) do
 			--local cmd = "redis-cli -h "..local_rc.." -p "..local_rs.." get timestamp:"..rc..":"..rs
 			local t = redis.call("get", "timestamp:"..rc..":"..rs)--split(run(cmd), "\n")[1]
+			if t == false then
+				t = 0
+			end
 			if (ts[rc] == nil) then
 				ts[rc] = {}
 			end
@@ -53,9 +56,7 @@ local function getVersion(timestamp, rcx)
 	local version = {}
 	for rc,rs_list in pairs(timestamp) do
 		for rs,t in pairs(rs_list) do
-			if version[rc] ~= nil
-				and timestamp[rc][rs] ~= nil then
-
+			if timestamp[rc][rs] ~= false then
 				if version[rc] == nil then
 					version[rc] = timestamp[rc][rs]
 				else
@@ -113,7 +114,7 @@ for k1,rc in pairs(rc_list) do
 			local id_in_rri = split(rc_rs_id, ".")[6]
 
 			--if element is new, get it
-			if timestamp_x[rc_in_rri] == nil or tonumber(timestamp_x[rc_in_rri]) < tonumber(t) then
+			if timestamp_x[rc_in_rri][rs_in_rri] == nil or tonumber(timestamp_x[rc_in_rri][rs_in_rri]) < tonumber(t) then
 				-- get element:rc.rs.id
 				local element_rc_rs_id = {}
 				element_rc_rs_id["value"] = redis.call("hget", "element:"..rc_rs_id, "value")
@@ -137,12 +138,12 @@ end
 
 --get Ty
 local timestamp = getTimeStamp(local_rc, local_rs, rc_list, rs_list)
-local timestamp_y = getVersion(timestamp, local_rc)
+--local timestamp_y = getVersion(timestamp, local_rc)
 
 --get result
 local updates = {}
 updates['AR'] = AR
-updates['T'] = timestamp_y
+updates['T'] = timestamp
 
 --serialize and return
 local result = serialize_local(updates)

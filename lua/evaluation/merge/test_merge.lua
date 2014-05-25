@@ -55,7 +55,7 @@ function mergeToLocalShardFromOneShard(local_rc, local_rs, other_rc, other_rs, r
 
 	--updates = {"AR":['t:rc.rs.id':{e,t,rc,rs,t2,rc2,rs2},...],"T":[{'rc':t},...]}
 	local x1 = os.clock()
-	local updates = getUpdates(other_rc, other_rs, timestamp_x)
+	local updates = getUpdates(other_rc, other_rs, timestamp)
 	local x2 = os.clock()
 	print(string.format("getUpdates from "
 		..other_rc..":"..other_rs.." to "
@@ -63,7 +63,7 @@ function mergeToLocalShardFromOneShard(local_rc, local_rs, other_rc, other_rs, r
 
 	x1 = os.clock()
 	addUpdates(updates['AR'], local_rc, local_rs, rc_list, rs_list)
-	updateTimeStamps(timestamp, updates['T'], rc_list, rs_list)
+	updateTimeStamps(local_rc, local_rs, timestamp, updates['T'], rc_list, rs_list)
 	x2 = os.clock()
 	print(string.format("addUpdates from "
 		..other_rc..":"..other_rs.." to "
@@ -78,6 +78,9 @@ function getTimeStamp(local_rc, local_rs, rc_list, rs_list)
 	for i,rc in ipairs(rc_list) do
 		for j,rs in ipairs(rs_list[rc]) do
 			local cmd = "redis-cli -h "..local_rc.." -p "..local_rs.." get timestamp:"..rc..":"..rs
+			if t == false then
+				t = 0
+			end
 			local t = split(run(cmd), "\n")[1]
 			if (ts[rc] == nil) then
 				ts[rc] = {}
@@ -122,6 +125,7 @@ function getUpdates(other_rc, other_rs, timestamp_x)
 	--local cmd = "redis-cli -h localhost -p 6380 eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized
 	local res = run(cmd)
 	res = split(res, "\n")[1]
+	--print(res)
 	res = unserialize_local(res)
 	return res
 end
@@ -197,11 +201,21 @@ end
 
 --add updates of elements to local shard
 --update format:[{'rc':t}},...]
-function updateTimeStamps(timestamp, updates, rc_list, rs_list)
+--[[function updateTimeStamps(local_rc, local_rs, timestamp, updates, rc_list, rs_list)
 	for rc,t in pairs(updates) do
 		for k,rs in pairs(rs_list[rc]) do
 			if timestamp[rc][rs] == nil or tonumber(timestamp[rc][rs]) < tonumber(t) then
-				local cmd = "redis-cli -h localhost -p 6379 set timestamp:"..rc..":"..rs.." "..t
+				local cmd = "redis-cli -h "..local_rc.." -p "..local_rs.." set timestamp:"..rc..":"..rs.." "..t
+				run(cmd)
+			end
+		end
+	end
+end]]--
+function updateTimeStamps(local_rc, local_rs, timestamp, updates, rc_list, rs_list)
+	for rc,v in pairs(updates) do
+		for rs,t in pairs(v) do
+			if timestamp[rc][rs] == nil or tonumber(timestamp[rc][rs]) < tonumber(t) then
+				local cmd = "redis-cli -h "..local_rc.." -p "..local_rs.." set timestamp:"..rc..":"..rs.." "..t
 				run(cmd)
 			end
 		end
