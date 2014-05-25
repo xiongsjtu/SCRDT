@@ -53,16 +53,20 @@ local function getVersion(timestamp, rcx)
 	local version = {}
 	for rc,rs_list in pairs(timestamp) do
 		for rs,t in pairs(rs_list) do
-			if version[rc] == nil then
-				version[rc] = timestamp[rc][rs]
-			else
-				if rcx == rc then
-					if version[rc] < timestamp[rc][rs] then
-						version[rc] = timestamp[rc][rs]
-					end
+			if version[rc] ~= nil
+				and timestamp[rc][rs] ~= nil then
+
+				if version[rc] == nil then
+					version[rc] = timestamp[rc][rs]
 				else
-					if version[rc] > timestamp[rc][rs] then
-						version[rc] = timestamp[rc][rs]
+					if rcx == rc then
+						if version[rc] < timestamp[rc][rs] then
+							version[rc] = timestamp[rc][rs]
+						end
+					else
+						if version[rc] > timestamp[rc][rs] then
+							version[rc] = timestamp[rc][rs]
+						end
 					end
 				end
 			end

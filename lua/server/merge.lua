@@ -119,9 +119,7 @@ function getUpdates(other_rc, other_rs, timestamp_x)
 	--In order to enable serialize, I put the serialize_local.lua together
 	local cmd = "redis-cli -h "..other_rc.." -p "..other_rs.." eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized
 	--local cmd = "redis-cli -h localhost -p 6380 eval \"$(cat serialize_local.lua merge_get_updates.lua)\" 0 "..tx_serialized
-	print(cmd)
 	local res = run(cmd)
-	print(res)
 	res = split(res, "\n")[1]
 	res = unserialize_local(res)
 	return res
