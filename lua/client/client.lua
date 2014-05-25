@@ -31,10 +31,10 @@ end
 --first get rc and rs information from localhost
 local_ip = "localhost"
 local_port = 6379
---[[client_rc = split(run("redis-cli -h "..local_ip.." -p "..local_port
+client_rc = split(run("redis-cli -h "..local_ip.." -p "..local_port
 	.." get client_rc"), '\n')[0]
 client_rs_list = split(run("redis-cli -h "..local_ip.." -p "..local_port
-	.." smembers client_rs_list"), '\n')]]--
+	.." smembers client_rs_list"), '\n')
 
 if (client_rc == nil) then
 	--if not exists, get rc and rs information from coordinator server
@@ -54,7 +54,7 @@ if (client_rc == nil) then
 	run("redis-cli -h "..local_ip.." -p "..local_port
 		.." set client_rc "..client_rc)
 	--expire the local rc
-	--run("redis-cli -h "..local_ip.." -p "..local_port.." expire client_rc "..60)
+	run("redis-cli -h "..local_ip.." -p "..local_port.." expire client_rc "..1)
 
 	cmd = "redis-cli -h "..local_ip.." -p "..local_port
 		.." sadd client_rs_list"
