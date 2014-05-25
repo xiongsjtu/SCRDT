@@ -59,7 +59,7 @@ function mergeToLocalShardFromOneShard(local_rc, local_rs, other_rc, other_rs, r
 	local x2 = os.clock()
 	print(string.format("getUpdates from "
 		..other_rc..":"..other_rs.." to "
-		..local_rc..":"..local_rs.." time: %.2f\n", x2 - x1))
+		..local_rc..":"..local_rs.." time: %.2f\n", 10*(x2 - x1)))
 
 	x1 = os.clock()
 	addUpdates(updates['AR'], local_rc, local_rs, rc_list, rs_list)
@@ -67,7 +67,7 @@ function mergeToLocalShardFromOneShard(local_rc, local_rs, other_rc, other_rs, r
 	x2 = os.clock()
 	print(string.format("addUpdates from "
 		..other_rc..":"..other_rs.." to "
-		..local_rc..":"..local_rs.." time: %.2f\n", x2 - x1))
+		..local_rc..":"..local_rs.." time: %.2f\n", 10*(x2 - x1)))
 
 	--print(updates)
 end
