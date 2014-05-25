@@ -97,6 +97,9 @@ else
 		--add local_rc to instance of local server
 		run("redis-cli -h "..local_rc.." -p "..rs
 			.." set local_rc "..local_rc)
+		--add local_rs to instance of local server
+		run("redis-cli -h "..local_rc.." -p "..rs
+			.." set local_rs "..rs)
 	end
 
 
