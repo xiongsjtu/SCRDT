@@ -1,0 +1,9 @@
+1. review OR-Set concept and CRDT
+2. show TA the environment
+3. show TA the code structure
+	3.1 900 lines
+4. play
+	4.1 client interface
+	4.2 merge test
+	4.3 throughput test
+5. QA
