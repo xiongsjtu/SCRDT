@@ -46,7 +46,7 @@ end
 
 --init local info
 local rs_count = arraySize(rs_list)
-local cmd1 = "lua ../../server/server_startup.lua add "..rc.." "..rs_count
+local cmd1 = "lua server_startup.lua add "..rc.." "..rs_count
 for k,rs in pairs(rs_list) do
 	cmd1 = cmd1.." "..rs
 end
@@ -57,7 +57,7 @@ local ttl = 10
 for i=1,data_num do
 	local rs = hash(i, rs_list)
 	local cmd = "redis-cli -h "..rc.." -p "..rs
-			.." eval \"$(cat ../../client/op/add.lua)\" 0 "
+			.." eval \"$(cat ../client/op/add.lua)\" 0 "
 			..i.." "..rc.." "..rs.." "..ttl
 	run(cmd)
 end

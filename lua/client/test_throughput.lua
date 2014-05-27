@@ -15,7 +15,7 @@ for i = 1, size do
 	for j = 1, 32 do
 		repeat
 			rand[j] = math.random(32, 126);
-		until rand[j] ~= 39
+		until rand[j] ~= 39 and rand[j] ~= 58
 	end
 	data[i] = string.char(unpack(rand))
 end

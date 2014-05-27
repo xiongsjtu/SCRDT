@@ -51,9 +51,10 @@ end]]--
 --local cmd2 = "redis-cli -h localhost -p 6380 eval \"$(cat lookup.lua)\" 0 xiong"
 --cmd2 = "redis-cli -h ".."localhost".." -p ".."6379".." config get port"
 --local cmd2 = "ls"
-math.randomseed( os.time() );
-for a = 1, 10 do
-         print( math.random(4) );
-end;
+cmd = "redis-cli mset "
+for i=1,50000 do
+	cmd = cmd.." "..i.."  3 "
+end
+run(cmd)
 --local res = run(cmd2)
 --print(getInstanceIp())
