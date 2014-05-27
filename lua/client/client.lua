@@ -73,19 +73,19 @@ client_rs = hash(e, client_rs_list)
 
 if op == 'add' then
 	cmd = "redis-cli -h "..client_rc.." -p "..client_rs
-			.." eval \"$(cat add.lua)\" 0 "
+			.." eval \"$(cat op/add.lua)\" 0 "
 			..e.." "..client_rc.." "..client_rs.." "..ttl
 	print(cmd)
 	print(run(cmd))
 elseif op == 'remove' then
 	cmd = "redis-cli -h "..client_rc.." -p "..client_rs
-		.." eval \"$(cat remove.lua)\" 0 "
+		.." eval \"$(cat op/remove.lua)\" 0 "
 		..e.." "..client_rc.." "..client_rs.." "..ttl
 	print(cmd)
 	print(run(cmd))
 elseif op == 'lookup' then
 	cmd = "redis-cli -h "..client_rc.." -p "..client_rs
-		.." eval \"$(cat lookup.lua)\" 0 "
+		.." eval \"$(cat op/lookup.lua)\" 0 "
 		..e
 	print(cmd)
 	print(run(cmd))
