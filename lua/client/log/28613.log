@@ -1,0 +1,4 @@
+generate data: 0.01 sec
+add data: 5.00 sec
+lookup data: 5.00 sec
+remove data: 5.00 sec

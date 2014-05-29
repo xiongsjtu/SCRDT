@@ -1,0 +1,27 @@
+README
+
+environment:
+database:Redis 2.6+
+language:lua 5.1
+
+deployment:
+1. Install serveral Redis instance on each node.(How to install multiple instance is described in http://redis.io/topics/quickstart)
+2. Install redis-cli on each client
+3. Copy all files in "server" directory to the server, and copy those in "client" directory to the client.
+4. Run "lua server_startup.lua add ip port_num port1 [port2,...]" on server to start a cluster
+5. Modify the file "config.lua" on client
+
+
+usage:
+1. interface
+	On each client, run "lua client.lua add/remove/lookup element". This will pick a random cluster and a shard(instance) by hashing the element value.
+2. merge test
+	On server, run "lua add_test_data.lua data_num ip port_num port1 [port2,...]" to uniformly add elements to one cluster.
+	Then run "lua merge.lua" on another server to merge the updates.
+3. throughput test
+	On client, run "lua test_throughput.lua data_num [add]". This will add data_num elements, lookup them up, remove them.
+	"add" flag is optional and will just add data_num test elements.
+	Run "./test_throughput.sh client_num data_num". This will create client_num processes to execute "lua test_throughput.lua data_num" in parallel.
+	Output is in the log directory.
+
+
